@@ -127,6 +127,11 @@ OptionParser.new do |opts|
     ENV['root_dir'] = dir
   end
 
+  opts.on('--namespace-prefix prefix',
+          "Assume models under the followign namespace") do |dir|
+    ENV['namespace_prefix'] = dir
+  end
+
   opts.on('--ignore-model-subdirects',
           "Ignore subdirectories of the models directory") do |dir|
     ENV['ignore_model_sub_dir'] = 'yes'

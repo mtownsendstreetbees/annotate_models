@@ -91,6 +91,16 @@ module AnnotateModels
 
     attr_writer :root_dir
 
+    def namespace_prefix
+      if @namespace_prefix.blank?
+        ''
+      else
+        @namespace_prefix
+      end
+    end
+
+    attr_writer :namespace_prefix
+
     def test_files(root_directory)
       [
         File.join(root_directory, UNIT_TEST_DIR,  "%MODEL_NAME%_test.rb"),
@@ -595,6 +605,7 @@ module AnnotateModels
       model_path = file.gsub(/\.rb$/, '')
       model_dir.each { |dir| model_path = model_path.gsub(/^#{dir}/, '').gsub(/^\//, '') }
       begin
+        # puts model_path
         get_loaded_model(model_path) || raise(BadModelFileError.new)
       rescue LoadError
         # this is for non-rails projects, which don't get Rails auto-require magic
@@ -612,7 +623,8 @@ module AnnotateModels
 
     # Retrieve loaded model class by path to the file where it's supposed to be defined.
     def get_loaded_model(model_path)
-      ActiveSupport::Inflector.constantize(ActiveSupport::Inflector.camelize(model_path))
+
+      ActiveSupport::Inflector.constantize(namespace_prefix + ActiveSupport::Inflector.camelize(model_path))
     rescue
       # Revert to the old way but it is not really robust
       ObjectSpace.each_object(::Class)
@@ -625,6 +637,7 @@ module AnnotateModels
 
     def parse_options(options = {})
       self.model_dir = options[:model_dir] if options[:model_dir]
+      self.namespace_prefix = options[:namespace_prefix] if options[:namespace_prefix]
       self.root_dir = options[:root_dir] if options[:root_dir]
     end
 
@@ -657,6 +670,7 @@ module AnnotateModels
       begin
         return false if /# -\*- SkipSchemaAnnotations.*/ =~ (File.exist?(file) ? File.read(file) : '')
         klass = get_model_class(file)
+
         do_annotate = klass &&
           klass < ActiveRecord::Base &&
           (!options[:exclude_sti_subclasses] || !(klass.superclass < ActiveRecord::Base && klass.table_name == klass.superclass.table_name)) &&
@@ -665,6 +679,7 @@ module AnnotateModels
 
         annotated.concat(annotate(klass, file, header, options)) if do_annotate
       rescue BadModelFileError => e
+        puts "error here"
         unless options[:ignore_unknown_models]
           puts "Unable to annotate #{file}: #{e.message}"
           puts "\t" + e.backtrace.join("\n\t") if options[:trace]
